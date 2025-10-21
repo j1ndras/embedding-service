@@ -1,0 +1,46 @@
+name: Publish Docker Image to GHCR
+
+# 1. Kapan workflow ini berjalan
+on:
+  push:
+    tags:
+      - 'v*' # Akan berjalan setiap kali Anda push tag yang diawali 'v' (cth: v1, v1.1, v2.0)
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest # Menggunakan server Ubuntu virtual
+    
+    # 2. Izin (Permissions) PENTING!
+    permissions:
+      contents: read      # Izin untuk membaca kode Anda
+      packages: write   # Izin untuk menulis (push) ke GitHub Packages (ghcr.io)
+
+    steps:
+      # 3. Ambil kode dari repo Anda
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 4. Login ke GitHub Container Registry (ghcr.io)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }} # Otomatis mengambil nama Anda 'j1ndras'
+          password: ${{ secrets.GITHUB_TOKEN }} # Token rahasia yang otomatis dibuat GitHub
+
+      # 5. Ekstrak metadata (seperti nama tag)
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }} # Nama image: ghcr.io/j1ndras/embedding-service
+
+      # 6. Build dan Push image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Ambil kode dari root
+          file: ./Dockerfile.embedding # <-- Menggunakan nama Dockerfile kustom Anda
+          push: true
+          tags: ${{ steps.meta.outputs.tags }} # Tag image-nya diambil dari tag git (cth: v1)
+          labels: ${{ steps.meta.outputs.labels }}
